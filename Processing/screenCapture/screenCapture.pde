@@ -1,3 +1,5 @@
+// Modified by dan@marginallyclever.com 2015-07-03
+
 /*  OctoWS2811 movie2serial.pde - Transmit video data to 1 or more
       Teensy 3.0 boards running OctoWS2811 VideoDisplay.ino
     http://www.pjrc.com/teensy/td_libs_OctoWS2811.html
@@ -40,7 +42,9 @@ import processing.video.*;
 import processing.serial.*;
 import java.awt.Rectangle;
 
-Movie myMovie = new Movie(this, "/Users/danroyer/Movies/Die Hard [1988] DvdRip [Eng] - Thizz/Die Hard [1988] DvdRip [Eng] - Thizz.avi");
+SimpleScreenCapture simpleScreenCapture;
+
+//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/Die Hard [1988] DvdRip [Eng] - Thizz/Die Hard [1988] DvdRip [Eng] - Thizz.avi");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/The Fifth Element[1997]DvDrip[Eng]-FXG/The Fifth Element[1997]DvDrip[Eng]-FXG.avi");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Downloads/test.avi");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/voodoo.mp4");
@@ -67,6 +71,9 @@ PImage[] ledImage = new PImage[maxPorts];      // image sent to each port
 int[] gammatable = new int[256];
 int errorCount=0;
 float framerate=0;
+PImage img = new PImage();
+PImage cpy = new PImage();
+
 
 void setup() {
   String[] list = Serial.list();
@@ -74,32 +81,30 @@ void setup() {
   println("Serial Ports List:");
   println(list);
   serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
-//  serialConfigure("/dev/tty.usbmodemfd131");  // change these to your port names
   if (errorCount > 0) exit();
   for (int i=0; i < 256; i++) {
     gammatable[i] = (int)(pow((float)i / 255.0, gamma) * 255.0 + 0.5);
   }
   
-  size(1024,768);  // create the window
-  myMovie.loop();  // start the movie :-)
+  size(640,480);  // create the window
+  simpleScreenCapture = new SimpleScreenCapture();
 }
 
  
-// movieEvent runs for each new frame of movie data
-void movieEvent(Movie m) {
+// runs for each new frame of movie data
+void movieEvent() {
   // read the movie's next frame
-  m.read();
+  img = simpleScreenCapture.get();
   
-  //if (framerate == 0) framerate = m.getSourceFrameRate();
-  framerate = 30.0; // TODO, how to read the frame rate???
+  cpy.copy(img,0,0,img.width,img.height,0,0,img.width,img.height);
   
   for (int i=0; i < numPorts; i++) {    
     // copy a portion of the movie's image to the LED image
-    int xoffset = percentage(m.width, ledArea[i].x);
-    int yoffset = percentage(m.height, ledArea[i].y);
-    int xwidth =  percentage(m.width, ledArea[i].width);
-    int yheight = percentage(m.height, ledArea[i].height);
-    ledImage[i].copy(m, xoffset, yoffset, xwidth, yheight,
+    int xoffset = percentage(img.width, ledArea[i].x);
+    int yoffset = percentage(img.height, ledArea[i].y);
+    int xwidth =  percentage(img.width, ledArea[i].width);
+    int yheight = percentage(img.height, ledArea[i].height);
+    ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
     byte[] ledData =  new byte[(ledImage[i].width * ledImage[i].height * 3) + 3];
@@ -226,8 +231,10 @@ void serialConfigure(String portName) {
 
 // draw runs every time the screen is redrawn - show the movie...
 void draw() {
+  movieEvent();
+   
   // show the original video
-  image(myMovie, 0, 80);
+  image(img, 0,80,640,415);
   
   // then try to show what was most recently sent to the LEDs
   // by displaying all the images for each port.
@@ -240,18 +247,6 @@ void draw() {
     int yloc =  percentage(ysize, ledArea[i].y);
     // show what should appear on the LEDs
     image(ledImage[i], 240 - xsize / 2 + xloc, 10 + yloc);
-  } 
-}
-
-// respond to mouse clicks as pause/play
-boolean isPlaying = true;
-void mousePressed() {
-  if (isPlaying) {
-    myMovie.pause();
-    isPlaying = false;
-  } else {
-    myMovie.play();
-    isPlaying = true;
   }
 }
 
@@ -282,4 +277,3 @@ double percentageFloat(int percent) {
   if (percent ==  8) return 1.0 / 12.0;
   return (double)percent / 100.0;
 }
-

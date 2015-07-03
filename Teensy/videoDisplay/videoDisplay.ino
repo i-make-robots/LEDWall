@@ -58,12 +58,12 @@
 
 #include <OctoWS2811.h>
 
-#define PANEL_WIDTH    8
-#define PANEL_HEIGHT   8
-#define COLS_LEDs      8*4 // all of the following params need to be adjusted for screen size
-#define ROWS_LEDs      8*3  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
-#define LEDS_PER_STRIP (8*8*4)//(COLS_LEDs * (ROWS_LEDs / 6))
-#define PANELS_PER_PIN 4
+#define COLUMNS      (8*4)  // all of the following params need to be adjusted for screen size
+#define ROWS         (8*3)  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
+#define PINS_USED    (3)
+
+#define TOTAL_LIGHTS    (COLUMNS * ROWS)
+#define LEDS_PER_STRIP  (TOTAL_LIGHTS / PINS_USED)
 
 
 
@@ -75,45 +75,75 @@ OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, WS2811_RGB | WS281
 void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);
+
   Serial.setTimeout(50);
+
+  Serial.print('0');  // left pixel
+  Serial.print(',');
+  Serial.print('0');  // top pixel
+  Serial.print(',');
+  Serial.print(COLUMNS);  // right pixel
+  Serial.print(',');
+  Serial.print(ROWS);  // bottom pixel
+
   leds.begin();
+  
+  for(int i=0;i<TOTAL_LIGHTS;++i) {
+    leds.setPixel(i,0);
+  }      
   leds.show();
 }
 
 
-void loop() {
-  int i,r,g,b;
+/**
+ * RGB colors are delivered left to right, top to bottom.
+ * change the index to match the wiring which (in this case)
+ * is a Z pattern.
+ */
+int led_map(int i) {/*
+  int row = i / COLUMNS;
+  int col = i % COLUMNS;
 
-  int s = LEDS_PER_STRIP * PANELS_PER_PIN;//(sizeof(drawingMemory)/3)-1;
+  if( ( row % 2 ) == 0 ) {
+    col = COLUMNS - 1 - col;
+  }
+
+  return row * COLUMNS + col;*/
+  return i;
+}
+
+
+void loop() {
+  int r,g,b;
+
   int flip13=LOW;
-  i=0;
+  int i=0;
   
-  //if(Serial.available()) {
-  while(1) {
+  do {
     while(Serial.available()<=0); 
     r = Serial.read();
-    //while(Serial.available()<=0); 
     g = Serial.read();
-    //while(Serial.available()<=0); 
     b = Serial.read();
     
+    // the least significant bit of every pixel is zero, except on the first pixel of each frame.
+    // this way if a pixel doesn't get transmitted the teensy can find the start of the next frame
+    // without this the video would get increasingly wierd the longer it was on.
     if( (r&0x01)==1 && (g&0x01)==1 && (b&0x01)==1 ) {
       // start of new frame
       i=0;
+
       if(flip13==HIGH) flip13=LOW;
       else flip13=HIGH;
       digitalWrite(13, flip13);
+
       leds.show();  // not sure if this function is needed  to update each frame
       //r=g=b=0;
     }
-    if(i < s) {
-      leds.setPixel(i, ((r << 16) | (g << 8) | b));
-//      leds.setPixel(led_map(i,((r << 16) | (g << 8) | b)));
+    if(i < TOTAL_LIGHTS) {
+      // fill this frame
+      leds.setPixel(led_map(i), ((r << 16) | (g << 8) | b));
       i++;
-//      drawingMemory[i++]=r;
-//      drawingMemory[i++]=g;
-//      drawingMemory[i++]=b;
     }
-  }
+  } while(1);
 }
 
