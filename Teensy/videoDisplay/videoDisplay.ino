@@ -70,6 +70,7 @@
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
 OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, WS2811_RGB | WS2811_800kHz);
+int pixeli;
 
 
 void setup() {
@@ -88,10 +89,42 @@ void setup() {
 
   leds.begin();
   
-  for(int i=0;i<TOTAL_LIGHTS;++i) {
-    leds.setPixel(i,0);
-  }      
+  for(long i=0;i<TOTAL_LIGHTS;++i) {
+    long j = i % COLUMNS;
+    long k = i / COLUMNS;
+    leds.setPixel(led_map3(i),rainbow(j,k));
+  }
   leds.show();
+  pixeli=0;
+}
+
+
+int rainbow(long j,long k) {
+  float f = (float)j / COLUMNS;
+  float v = (float)k / (float)ROWS;
+  
+  Serial.print(f);
+  
+  int r=0,g=0,b=0;
+  float x=6;
+  if(v<0.2) {
+    if(f<0.5) {
+      r=g=b=255;
+    } else {
+      r=g=b=0;
+    }
+  } else if(v<0.8) {
+    if(f<1/x) r=255;
+    else if(f<2/x) g=255;
+    else if(f<3/x) b=255;
+    else if(f<4/x) r=g=255;
+    else if(f<5/x) g=b=255;
+    else if(f<6/x) b=r=255;
+  } else {
+    r=g=b=255*f;
+  }
+  
+  return ((r << 16) | (g << 8) | b);
 }
 
 
@@ -100,7 +133,7 @@ void setup() {
  * change the index to match the wiring which (in this case)
  * is a Z pattern.
  */
-int led_map(int i) {/*
+int led_map2(int i) {
   int row = i / COLUMNS;
   int col = i % COLUMNS;
 
@@ -108,41 +141,53 @@ int led_map(int i) {/*
     col = COLUMNS - 1 - col;
   }
 
-  return row * COLUMNS + col;*/
+  return row * COLUMNS + col;
+}
+
+
+int led_map3(int input) {
+
+  int row = input / LEDS_PER_STRIP;
+  input %= LEDS_PER_STRIP;
+  
+  int y = input / ( COLUMNS );
+  int x = input % ( COLUMNS );
+  
+  if((x%2)==1) {
+    y = 7-y;
+  }
+  
+  int output = row * LEDS_PER_STRIP
+             + x * 8
+             + y;
+  return output;
+}
+
+int led_map(int i) {
   return i;
 }
 
 
 void loop() {
-  int r,g,b;
-
-  int flip13=LOW;
-  int i=0;
-  
   do {
     while(Serial.available()<=0); 
-    r = Serial.read();
-    g = Serial.read();
-    b = Serial.read();
+    int r = Serial.read();
+    int g = Serial.read();
+    int b = Serial.read();
     
     // the least significant bit of every pixel is zero, except on the first pixel of each frame.
     // this way if a pixel doesn't get transmitted the teensy can find the start of the next frame
     // without this the video would get increasingly wierd the longer it was on.
     if( (r&0x01)==1 && (g&0x01)==1 && (b&0x01)==1 ) {
       // start of new frame
-      i=0;
-
-      if(flip13==HIGH) flip13=LOW;
-      else flip13=HIGH;
-      digitalWrite(13, flip13);
+      pixeli=0;
 
       leds.show();  // not sure if this function is needed  to update each frame
-      //r=g=b=0;
     }
-    if(i < TOTAL_LIGHTS) {
+    if(pixeli < TOTAL_LIGHTS) {
       // fill this frame
-      leds.setPixel(led_map(i), ((r << 16) | (g << 8) | b));
-      i++;
+      leds.setPixel(led_map(pixeli), ((r << 16) | (g << 8) | b));
+      pixeli++;
     }
   } while(1);
 }
