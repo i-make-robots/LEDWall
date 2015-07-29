@@ -17,7 +17,7 @@ class SimpleScreenCapture {
   }
 
   PImage get() {
-    screenshot = new PImage(robot.createScreenCapture(new Rectangle(50, 50, width, height)));
+    screenshot = new PImage(robot.createScreenCapture(new Rectangle(150, 150, width, height)));
     return screenshot;
   }
 

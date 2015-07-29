@@ -68,7 +68,6 @@ Serial[] ledSerial = new Serial[maxPorts];     // each port's actual Serial port
 Rectangle[] ledArea = new Rectangle[maxPorts]; // the area of the movie each port gets, in % (0-100)
 boolean[] ledLayout = new boolean[maxPorts];   // layout of rows, true = even is left->right
 PImage[] ledImage = new PImage[maxPorts];      // image sent to each port
-int[] gammatable = new int[256];
 int errorCount=0;
 float framerate=0;
 PImage img = new PImage();
@@ -82,9 +81,6 @@ void setup() {
   println(list);
   serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
   if (errorCount > 0) exit();
-  for (int i=0; i < 256; i++) {
-    gammatable[i] = (int)(pow((float)i / 255.0, gamma) * 255.0 + 0.5);
-  }
   
   size(640,480);  // create the window
   simpleScreenCapture = new SimpleScreenCapture();
@@ -107,7 +103,11 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    byte[] ledData =  new byte[(ledImage[i].width * ledImage[i].height * 3)];
+    int size=(ledImage[i].width * ledImage[i].height * 3);
+    byte[] ledData =  new byte[size+3];
+    ledData[size+0]=0;
+    ledData[size+1]=0;
+    ledData[size+2]=0;
     image2data(ledImage[i], ledData, ledLayout[i]);/*
     if (i == 0) {
       ledData[0] = '*';  // first Teensy is the frame sync master
@@ -161,44 +161,18 @@ void image2data(PImage image, byte[] data, boolean layout) {
   for (y = 0; y < image.height; y++) {
     for (x = 0; x < image.width; x++) {
       pixel = image.pixels[i++];
-      pixel = colorWiring(pixel);
-      int r = ( pixel ) >> 16; 
-      int g = ( pixel ) >>  8; 
-      int b = ( pixel );
+      int r = ( pixel & 0xFF0000 ) >> 16; 
+      int g = ( pixel & 0x00FF00 ) >>  8; 
+      int b = ( pixel & 0x0000FF );
+      if( r==0 && g==0 && b==0 ) {
+        r = g = b = 1;
+      }
       offset = led_map(x,y)*3;
-      data[offset++] = (byte)(r & 0xff);
-      data[offset++] = (byte)(g & 0xff);
-      data[offset++] = (byte)(b & 0xff);
+      data[offset++] = (byte)(r);
+      data[offset++] = (byte)(g);
+      data[offset++] = (byte)(b);
     }
   }
-  offset=0;
-  data[offset++] |= (byte)0x01;
-  //data[offset++] |= (byte)0x01;
-  //data[offset++] |= (byte)0x01;
-}
-
-  float color_b = 255;
-  int color_c = 1;
-  float color_a = color_b - color_c;
-  float color_x = color_a/color_b;
-// translate the 24 bit color from RGB to the actual
-// order used by the LED wiring.  GRB is the most common.
-int colorWiring(int c) {
-  int red = (c & 0xFF0000) >> 16;
-  int green = (c & 0x00FF00) >> 8;
-  int blue = (c & 0x0000FF);
-  
-  //red = int(float(red) * color_x) + color_c;
-  //green = int(float(green) * color_x) + color_c;
-  //blue = int(float(blue) * color_x) + color_c;
-  if( r==0 && g==0 && b==0 ) {
-    r=1;
-  }
-  
-  //red = gammatable[red];
-  //green = gammatable[green];
-  //blue = gammatable[blue];
-  return (green << 16) | (red << 8) | (blue); // GRB - most common wiring
 }
 
 
@@ -250,7 +224,8 @@ void draw() {
    
   // show the original video
   //image(img, 0,80,640,415);
-  image(img, 0,80,640,415);
+  //image(img, 0,80,640,415);
+  image(ledImage[0], 0,80,640,415);
   
   // then try to show what was most recently sent to the LEDs
   // by displaying all the images for each port.
