@@ -178,11 +178,12 @@ void loop() {
     // the least significant bit of every pixel is zero, except on the first pixel of each frame.
     // this way if a pixel doesn't get transmitted the teensy can find the start of the next frame
     // without this the video would get increasingly wierd the longer it was on.
-    if( (r&0x01)==1 && (g&0x01)==1 && (b&0x01)==1 ) {
+    if( r==0 && g==0 && b==0 ) {
       // start of new frame
       pixeli=0;
 
       leds.show();  // not sure if this function is needed  to update each frame
+      continue;
     }
     if(pixeli < TOTAL_LIGHTS) {
       // fill this frame

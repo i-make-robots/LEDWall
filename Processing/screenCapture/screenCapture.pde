@@ -107,7 +107,7 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    byte[] ledData =  new byte[(ledImage[i].width * ledImage[i].height * 3) + 3];
+    byte[] ledData =  new byte[(ledImage[i].width * ledImage[i].height * 3)];
     image2data(ledImage[i], ledData, ledLayout[i]);/*
     if (i == 0) {
       ledData[0] = '*';  // first Teensy is the frame sync master
@@ -161,32 +161,46 @@ void image2data(PImage image, byte[] data, boolean layout) {
   for (y = 0; y < image.height; y++) {
     for (x = 0; x < image.width; x++) {
       pixel = image.pixels[i++];
+      pixel = colorWiring(pixel);
       int r = ( pixel ) >> 16; 
       int g = ( pixel ) >>  8; 
       int b = ( pixel );
       offset = led_map(x,y)*3;
-      data[offset++] = (byte)(r & 0xfe);
-      data[offset++] = (byte)(g & 0xfe);
-      data[offset++] = (byte)(b & 0xfe);
+      data[offset++] = (byte)(r & 0xff);
+      data[offset++] = (byte)(g & 0xff);
+      data[offset++] = (byte)(b & 0xff);
     }
   }
   offset=0;
   data[offset++] |= (byte)0x01;
-  data[offset++] |= (byte)0x01;
-  data[offset++] |= (byte)0x01;
+  //data[offset++] |= (byte)0x01;
+  //data[offset++] |= (byte)0x01;
 }
 
+  float color_b = 255;
+  int color_c = 1;
+  float color_a = color_b - color_c;
+  float color_x = color_a/color_b;
 // translate the 24 bit color from RGB to the actual
 // order used by the LED wiring.  GRB is the most common.
 int colorWiring(int c) {
   int red = (c & 0xFF0000) >> 16;
   int green = (c & 0x00FF00) >> 8;
   int blue = (c & 0x0000FF);
-  red = gammatable[red];
-  green = gammatable[green];
-  blue = gammatable[blue];
+  
+  //red = int(float(red) * color_x) + color_c;
+  //green = int(float(green) * color_x) + color_c;
+  //blue = int(float(blue) * color_x) + color_c;
+  if( r==0 && g==0 && b==0 ) {
+    r=1;
+  }
+  
+  //red = gammatable[red];
+  //green = gammatable[green];
+  //blue = gammatable[blue];
   return (green << 16) | (red << 8) | (blue); // GRB - most common wiring
 }
+
 
 // ask a Teensy board for its LED configuration, and set up the info for it.
 void serialConfigure(String portName) {
@@ -229,11 +243,13 @@ void serialConfigure(String portName) {
   numPorts++;
 }
 
+
 // draw runs every time the screen is redrawn - show the movie...
 void draw() {
   movieEvent();
    
   // show the original video
+  //image(img, 0,80,640,415);
   image(img, 0,80,640,415);
   
   // then try to show what was most recently sent to the LEDs
@@ -249,6 +265,7 @@ void draw() {
     image(ledImage[i], 240 - xsize / 2 + xloc, 10 + yloc);
   }
 }
+
 
 // scale a number by a percentage, from 0 to 100
 int percentage(int num, int percent) {
