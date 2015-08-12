@@ -113,7 +113,7 @@ int led_map(int x,int y) {
 //
 void rainbow(int phaseShift, int cycleTime)
 {
-  int color, x, y, offset, wait;
+  int color, x, y, wait;
 
   wait = cycleTime * 1000 / ledsPerStrip;
   for (color=0; color < 180; color++) {

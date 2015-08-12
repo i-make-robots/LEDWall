@@ -7,12 +7,11 @@
 #include <OctoWS2811.h>
 
 //OctoWS2811 Defn. Stuff
-#define PANEL_WIDTH 8
-#define PANEL_HEIGHT 8
-#define COLS_LEDs 8*4 // all of the following params need to be adjusted for screen size
-#define ROWS_LEDs 8*3  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
-#define LEDS_PER_STRIP (8*8*4)//(COLS_LEDs * (ROWS_LEDs / 6))
-#define PANELS_PER_PIN 4
+#define COLUMNS 64 // all of the following params need to be adjusted for screen size
+#define ROWS 36  // LED_LAYOUT assumed 0 if ROWS > 8
+#define TOTAL_LEDS  (COLUMNS * ROWS)
+#define LEDS_PER_STRIP (TOTAL_LEDS/3)//(COLUMNS * (ROWS / 6))
+
 
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
@@ -57,87 +56,41 @@ void setup()
 }
 
 
-int led_map(int input) {
-  int row = input / LEDS_PER_STRIP;
-  input %= LEDS_PER_STRIP;
-  
-  int y = input / ( PANEL_WIDTH * PANELS_PER_PIN );
-  int x = input % ( PANEL_WIDTH * PANELS_PER_PIN );
-  
-  if(x%2) {
-    y = 7-y;
+int led_map(int x,int y) {
+  //return led_map(y * COLUMNS + x);
+  if((y%2)==1) {
+    x = COLUMNS - 1 - x;
   }
   
-  int output = row * LEDS_PER_STRIP
-             + x * PANEL_HEIGHT
-             + y;
-  return output;
+  return y * COLUMNS + x;
 }
-
-
-int led_map(int x,int y) {
-  return led_map(mask(x, y));
-}
-
-int mask(int x,int y) {
-  return y * PANEL_WIDTH * PANELS_PER_PIN + x;
-}
-
 
 void loop() {
   plasma();
 }
 
-uint8_t vhs[] = {
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,0,0,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,1,0,0,1,0,0,0,0,1,1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,1,1,1,1,0,0,
-  0,0,1,1,1,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,0,0,0,
-  0,0,1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0,1,1,0,0,0,0,0,0,1,1,1,1,0,0,
-  0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,1,0,0,0,0,0,1,0,0,0,0,0,
-  0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,
-  0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,0,0,1,0,0,0,0,1,1,1,1,0,0,
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-  0,0,1,1,1,1,0,0,1,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,
-  0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,
-  0,0,1,1,1,1,0,0,1,0,0,0,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,
-  0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,
-  0,0,0,0,0,1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,
-  0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,1,1,1,0,0,1,0,0,0,0,0,
-  0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-};
-
 
 void plasma() {
   long start = millis();
-
+  int scale=20;
+  
   unsigned long frameCount=25500;  // arbitrary seed to calculate the three time displacement variables t,t2,t3
   while(millis() - start < 15000 ) { // 15000 = 15 seconds
     frameCount++ ; 
-    uint16_t t = fastCosineCalc((42 * frameCount)/100);  //time displacement - fiddle with these til it looks good...
-    uint16_t t2 = fastCosineCalc((35 * frameCount)/100); 
-    uint16_t t3 = fastCosineCalc((24 * frameCount)/100);
+    uint16_t t = fastCosineCalc((42 * frameCount)/scale);  //time displacement - fiddle with these til it looks good...
+    uint16_t t2 = fastCosineCalc((35 * frameCount)/scale); 
+    uint16_t t3 = fastCosineCalc((24 * frameCount)/scale);
 
-    for (uint8_t y = 0; y < ROWS_LEDs; y++) {
+    for (uint8_t y = 0; y < ROWS; y++) {
       int left2Right, pixelIndex;
-      if (((y % (ROWS_LEDs/8)) & 1) == 0) {
+      if (((y % (ROWS/8)) & 1) == 0) {
         left2Right = 1;
-        pixelIndex = y * COLS_LEDs;
+        pixelIndex = y * COLUMNS;
       } else {
         left2Right = -1;
-        pixelIndex = (y + 1) * COLS_LEDs - 1;
+        pixelIndex = (y + 1) * COLUMNS - 1;
       }
-      for (uint8_t x = 0; x < COLS_LEDs ; x++) {
+      for (uint8_t x = 0; x < COLUMNS ; x++) {
         //Calculate 3 seperate plasma waves, one for each color channel
         uint8_t r = fastCosineCalc(((x << 3) + (t >> 1) + fastCosineCalc((t2 + (y << 3)))));
         uint8_t g = fastCosineCalc(((y << 3) + t + fastCosineCalc(((t3 >> 2) + (x << 3)))));
@@ -147,13 +100,13 @@ void plasma() {
         //g=pgm_read_byte_near(exp_gamma+g);
         //b=pgm_read_byte_near(exp_gamma+b);
         uint32_t c = ((r << 16) | (g << 8) | b);
-        uint32_t p = led_map(x,y);
+        uint32_t p = led_map(x,y);/*
         if(vhs[mask(x,y)]==1) {
           uint16_t t = fastCosineCalc((120 * frameCount)/100);
           c = ((t)<<16) |
               ((t)<<8) |
               (t);
-        }
+        }*/
         leds.setPixel(p, c);
 	pixelIndex += left2Right;
       }

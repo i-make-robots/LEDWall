@@ -44,25 +44,12 @@ import java.awt.Rectangle;
 
 SimpleScreenCapture simpleScreenCapture;
 
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/Die Hard [1988] DvdRip [Eng] - Thizz/Die Hard [1988] DvdRip [Eng] - Thizz.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/The Fifth Element[1997]DvDrip[Eng]-FXG/The Fifth Element[1997]DvDrip[Eng]-FXG.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Downloads/test.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/voodoo.mp4");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/test2.mp4");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/silhouette.mp4");
-
-final int SCREEN_WIDTH = 32;
-final int SCREEN_HEIGHT = 24;
-
-final int PANEL_WIDTH=8;
-final int PANEL_HEIGHT=8;
-final int PANELS_PER_PIN = 4;
-final int LEDS_PER_STRIP = PANEL_WIDTH * PANEL_HEIGHT * PANELS_PER_PIN;
-
-float gamma = 1.7;
+int SCREEN_WIDTH=64;
+int SCREEN_HEIGHT=36;
+int MARGIN = 80;
 
 int numPorts=0;  // the number of serial ports in use
-int maxPorts=24; // maximum number of serial ports
+int maxPorts=8;  // maximum number of serial ports
 
 Serial[] ledSerial = new Serial[maxPorts];     // each port's actual Serial port
 Rectangle[] ledArea = new Rectangle[maxPorts]; // the area of the movie each port gets, in % (0-100)
@@ -70,19 +57,35 @@ boolean[] ledLayout = new boolean[maxPorts];   // layout of rows, true = even is
 PImage[] ledImage = new PImage[maxPorts];      // image sent to each port
 int errorCount=0;
 float framerate=0;
-PImage img = new PImage();
-PImage cpy = new PImage();
+PImage img;
+byte [] ledData;
+
+int maxW,maxH;
 
 
 void setup() {
+  maxW=maxH=0;
   String[] list = Serial.list();
   delay(20);
   println("Serial Ports List:");
   println(list);
-  serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
-  if (errorCount > 0) exit();
+  //serialConfigure("/dev/tty.usbmodem912641");  // change these to your port names
+  serialConfigure(list[list.length-1]);  // change these to your port names
+
+  if (errorCount > 0) {
+    exit();
+    return;
+  }
   
-  size(640,480);  // create the window
+  
+  int size=(maxW * maxH * 3);
+  
+  ledData = new byte[size+3];
+  ledData[size+0]=0;
+  ledData[size+1]=0;
+  ledData[size+2]=0;
+    
+  size(640,360);  // create the window
   simpleScreenCapture = new SimpleScreenCapture();
 }
 
@@ -91,8 +94,6 @@ void setup() {
 void movieEvent() {
   // read the movie's next frame
   img = simpleScreenCapture.get();
-  
-  cpy.copy(img,0,0,img.width,img.height,0,0,img.width,img.height);
   
   for (int i=0; i < numPorts; i++) {    
     // copy a portion of the movie's image to the LED image
@@ -103,12 +104,8 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    int size=(ledImage[i].width * ledImage[i].height * 3);
-    byte[] ledData =  new byte[size+3];
-    ledData[size+0]=0;
-    ledData[size+1]=0;
-    ledData[size+2]=0;
-    image2data(ledImage[i], ledData, ledLayout[i]);/*
+    image2data(ledImage[i], ledData, ledLayout[i]);
+    /*
     if (i == 0) {
       ledData[0] = '*';  // first Teensy is the frame sync master
       int usec = (int)((1000000.0 / framerate) * 0.75);
@@ -125,53 +122,28 @@ void movieEvent() {
 }
 
 
-int led_map(int input) {
-  int row = input / LEDS_PER_STRIP;
-  input %= LEDS_PER_STRIP;
-  
-  int y = input / ( SCREEN_WIDTH );
-  int x = input % ( SCREEN_WIDTH );
-  
-  if((x%2)==1) {
-    y = 7-y;
-  }
-  
-  int output = row * LEDS_PER_STRIP
-             + x * PANEL_HEIGHT
-             + y;
-  return output;
-}
-
-
-int led_map(int x,int y) {
-  return led_map(y * SCREEN_WIDTH + x);
-}
-
-
-
 // image2data converts an image to OctoWS2811's raw data format.
-// The number of vertical pixels in the image must be a multiple
-// of 8.  The data array must be the proper size for the image.
+// The data array must be the proper size for the image.
 void image2data(PImage image, byte[] data, boolean layout) {
-  int offset = 0;
-  int x, y, mask;
-  int pixel;
-  int i=0;
-
-  for (y = 0; y < image.height; y++) {
-    for (x = 0; x < image.width; x++) {
-      pixel = image.pixels[i++];
-      int r = ( pixel & 0xFF0000 ) >> 16; 
-      int g = ( pixel & 0x00FF00 ) >>  8; 
-      int b = ( pixel & 0x0000FF );
-      if( r==0 && g==0 && b==0 ) {
-        r = g = b = 1;
-      }
-      offset = led_map(x,y)*3;
-      data[offset++] = (byte)(r);
-      data[offset++] = (byte)(g);
-      data[offset++] = (byte)(b);
-    }
+  int offset=0, p, pixel;
+  int size = image.height * image.height;
+  int r,g,b;
+  
+  for(p = 0; p < size; p++) {
+    pixel = image.pixels[p];
+    b = pixel & 0xFF;
+    pixel >>= 8;
+    g = pixel & 0xFF;
+    pixel >>= 8;
+    r = pixel & 0xFF;
+    
+    if( r==0 ) r = 1;
+    if( g==0 ) g = 1;
+    if( b==0 ) b = 1;
+    
+    data[offset++] = (byte)(r);
+    data[offset++] = (byte)(g);
+    data[offset++] = (byte)(b);
   }
 }
 
@@ -183,38 +155,59 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
+
   try {
     ledSerial[numPorts] = new Serial(this, portName);
     if (ledSerial[numPorts] == null) throw new NullPointerException();
-    ledSerial[numPorts].write('?');
+    //ledSerial[numPorts].write('?');
   } catch (Throwable e) {
     println("Serial port " + portName + " does not exist or is non-functional");
     errorCount++;
     return;
   }
-  delay(50);/*
+/*
+  //delay(50);
+  ledSerial[numPorts].clear();
   String line = ledSerial[numPorts].readStringUntil(10);
   if (line == null) {
     println("Serial port " + portName + " is not responding.");
-    println("Is it really a Teensy 3.0 running VideoDisplay?");
+    println("Is it really a Teensy 3.1 running VideoDisplay?");
     errorCount++;
     return;
   }
-  */
-  print("port "+numPorts+": ");
-  String line = "32,24,0,0,0,0,0,100,100,0,0,0";
+*/
+  //print("port "+numPorts+": ");
+  //  0 - led width
+  //  1 - led height
+  //  2 - ?
+  //  3 - ?
+  //  4 - ?
+  //  5 - source top left %
+  //  6 - source top left %
+  //  7 - source bottom right %
+  //  8 - source bottom right %
+  //  9 - ?
+  // 10 - ?
+  // 11 - ?
+  String line = "64,36,0,0,0,0,0,100,100,0,0,0";
   String param[] = line.split(",");
   if (param.length != 12) {
     println("Error: port " + portName + " did not respond to LED config query");
     errorCount++;
     return;
   }
+
+  int w = Integer.parseInt(param[0]);
+  int h = Integer.parseInt(param[1]);
   // only store the info and increase numPorts if Teensy responds properly
-  ledImage[numPorts] = new PImage(Integer.parseInt(param[0]), Integer.parseInt(param[1]), RGB);
+  ledImage[numPorts] = new PImage(w, h, RGB);
   ledArea[numPorts] = new Rectangle(Integer.parseInt(param[5]), Integer.parseInt(param[6]),
                      Integer.parseInt(param[7]), Integer.parseInt(param[8]));
   ledLayout[numPorts] = (Integer.parseInt(param[5]) == 0);
   numPorts++;
+  
+  if(maxW<w) maxW=w;
+  if(maxH<h) maxH=h;
 }
 
 
@@ -223,9 +216,9 @@ void draw() {
   movieEvent();
    
   // show the original video
-  //image(img, 0,80,640,415);
-  //image(img, 0,80,640,415);
-  image(ledImage[0], 0,80,640,415);
+  image(img, 0,MARGIN,640,360-MARGIN);
+  // show the compressed image
+  //image(ledImage[0], 0,80,640,360-80);
   
   // then try to show what was most recently sent to the LEDs
   // by displaying all the images for each port.

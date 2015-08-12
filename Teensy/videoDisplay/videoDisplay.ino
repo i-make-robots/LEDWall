@@ -58,8 +58,8 @@
 
 #include <OctoWS2811.h>
 
-#define COLUMNS      (8*4)  // all of the following params need to be adjusted for screen size
-#define ROWS         (8*3)  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
+#define COLUMNS      (64)  // all of the following params need to be adjusted for screen size
+#define ROWS         (36)  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
 #define PINS_USED    (3)
 
 #define TOTAL_LIGHTS    (COLUMNS * ROWS)
@@ -69,36 +69,39 @@
 
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
-OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, WS2811_RGB | WS2811_800kHz);
+OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, WS2811_GRB | WS2811_800kHz);
 int pixeli;
-
+int led_state=HIGH;
 
 void setup() {
   pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+  digitalWrite(13, led_state);
 
+  //Serial.begin(57600);
   Serial.setTimeout(50);
-
-  Serial.print('0');  // left pixel
+  Serial.print(COLUMNS);
   Serial.print(',');
-  Serial.print('0');  // top pixel
-  Serial.print(',');
-  Serial.print(COLUMNS);  // right pixel
-  Serial.print(',');
-  Serial.print(ROWS);  // bottom pixel
+  Serial.print(ROWS);
+  Serial.print(",0,0,0,0,0,100,100,0,0,0\n");
 
   leds.begin();
   
+  show_rainbow();
+}
+
+
+void show_rainbow() {
   for(long i=0;i<TOTAL_LIGHTS;++i) {
     long j = i % COLUMNS;
     long k = i / COLUMNS;
-    leds.setPixel(led_map3(i),rainbow(j,k));
+    leds.setPixel(led_map(i),rainbow(j,k));
   }
   leds.show();
   pixeli=0;
 }
 
 
+// draw the test pattern when not receiving video.
 int rainbow(long j,long k) {
   float f = (float)j / COLUMNS;
   float v = (float)k / (float)ROWS;
@@ -128,52 +131,48 @@ int rainbow(long j,long k) {
 }
 
 
-/**
- * RGB colors are delivered left to right, top to bottom.
- * change the index to match the wiring which (in this case)
- * is a Z pattern.
- */
-int led_map2(int i) {
-  int row = i / COLUMNS;
-  int col = i % COLUMNS;
-
-  if( ( row % 2 ) == 0 ) {
-    col = COLUMNS - 1 - col;
+int led_map(int x,int y) {
+  //return led_map(y * COLUMNS + x);
+  if((y%2)==1) {
+    x = COLUMNS - 1 - x;
   }
-
-  return row * COLUMNS + col;
+  
+  return y * COLUMNS + x;
 }
 
 
-int led_map3(int input) {
-
-  int row = input / LEDS_PER_STRIP;
-  input %= LEDS_PER_STRIP;
-  
-  int y = input / ( COLUMNS );
-  int x = input % ( COLUMNS );
-  
-  if((x%2)==1) {
-    y = 7-y;
-  }
-  
-  int output = row * LEDS_PER_STRIP
-             + x * 8
-             + y;
-  return output;
-}
-
-int led_map(int i) {
-  return i;
+int led_map(int index) {
+  return led_map( index % COLUMNS,
+                  index / COLUMNS );
 }
 
 
 void loop() {
+  int r,g,b;
+  /*
+  long t;
+  bool one=false;
+  show_rainbow();
+      digitalWrite(13, led_state);
+      led_state = ( led_state == HIGH ) ? LOW : HIGH;
+      delay(250);
+  return;
+  */
   do {
-    while(Serial.available()<=0); 
-    int r = Serial.read();
-    int g = Serial.read();
-    int b = Serial.read();
+    /*
+    t = millis();
+    while(Serial.available()<=0) {
+      if(one==false && millis()-t > 2000) {
+        one=true;
+        show_rainbow();
+      }
+    }
+    one=false;
+    */
+    while(Serial.available()<=0);
+    r = Serial.read();
+    g = Serial.read();
+    b = Serial.read();
     
     // the least significant bit of every pixel is zero, except on the first pixel of each frame.
     // this way if a pixel doesn't get transmitted the teensy can find the start of the next frame
@@ -183,6 +182,9 @@ void loop() {
       pixeli=0;
 
       leds.show();  // not sure if this function is needed  to update each frame
+      
+      digitalWrite(13, led_state);
+      led_state = ( led_state == HIGH ) ? LOW : HIGH;
       continue;
     }
     if(pixeli < TOTAL_LIGHTS) {
