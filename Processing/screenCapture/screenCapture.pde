@@ -70,18 +70,28 @@ boolean[] ledLayout = new boolean[maxPorts];   // layout of rows, true = even is
 PImage[] ledImage = new PImage[maxPorts];      // image sent to each port
 int errorCount=0;
 float framerate=0;
-PImage img = new PImage();
-PImage cpy = new PImage();
+int maxW,maxH;
+PImage img;// = new PImage();
+//PImage cpy = new PImage();
+byte[] ledData;
 
 
 void setup() {
+  maxW=maxH=0;
   String[] list = Serial.list();
   delay(20);
   println("Serial Ports List:");
   println(list);
-  serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
+  //serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
+  serialConfigure(list[list.length-1]);
   if (errorCount > 0) exit();
   
+  int size=(maxW * maxH * 3);
+  ledData =  new byte[size+3];
+  ledData[size+0]=0;
+  ledData[size+1]=0;
+  ledData[size+2]=0;
+    
   size(640,480);  // create the window
   simpleScreenCapture = new SimpleScreenCapture();
 }
@@ -92,7 +102,7 @@ void movieEvent() {
   // read the movie's next frame
   img = simpleScreenCapture.get();
   
-  cpy.copy(img,0,0,img.width,img.height,0,0,img.width,img.height);
+  //cpy.copy(img,0,0,img.width,img.height,0,0,img.width,img.height);
   
   for (int i=0; i < numPorts; i++) {    
     // copy a portion of the movie's image to the LED image
@@ -103,11 +113,6 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    int size=(ledImage[i].width * ledImage[i].height * 3);
-    byte[] ledData =  new byte[size+3];
-    ledData[size+0]=0;
-    ledData[size+1]=0;
-    ledData[size+2]=0;
     image2data(ledImage[i], ledData, ledLayout[i]);/*
     if (i == 0) {
       ledData[0] = '*';  // first Teensy is the frame sync master
@@ -153,10 +158,8 @@ int led_map(int x,int y) {
 // The number of vertical pixels in the image must be a multiple
 // of 8.  The data array must be the proper size for the image.
 void image2data(PImage image, byte[] data, boolean layout) {
-  int offset = 0;
-  int x, y, mask;
-  int pixel;
-  int i=0;
+  int offset, x, y, mask, pixel, i=0;
+  int size = image.height * image.width;
 
   for (y = 0; y < image.height; y++) {
     for (x = 0; x < image.width; x++) {
@@ -164,9 +167,11 @@ void image2data(PImage image, byte[] data, boolean layout) {
       int r = ( pixel & 0xFF0000 ) >> 16; 
       int g = ( pixel & 0x00FF00 ) >>  8; 
       int b = ( pixel & 0x0000FF );
-      if( r==0 && g==0 && b==0 ) {
-        r = g = b = 1;
-      }
+      
+      if( r==0 ) r=1;
+      if( g==0 ) g=1;
+      if( b==0 ) b=1;
+      
       offset = led_map(x,y)*3;
       data[offset++] = (byte)(r);
       data[offset++] = (byte)(g);
@@ -209,12 +214,16 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
+  int w = Integer.parseInt(param[0]);
+  int h = Integer.parseInt(param[1]);
   // only store the info and increase numPorts if Teensy responds properly
-  ledImage[numPorts] = new PImage(Integer.parseInt(param[0]), Integer.parseInt(param[1]), RGB);
+  ledImage[numPorts] = new PImage(w, h, RGB);
   ledArea[numPorts] = new Rectangle(Integer.parseInt(param[5]), Integer.parseInt(param[6]),
                      Integer.parseInt(param[7]), Integer.parseInt(param[8]));
   ledLayout[numPorts] = (Integer.parseInt(param[5]) == 0);
   numPorts++;
+  if(maxW < w) maxW = w;
+  if(maxH < h) maxH = h;
 }
 
 
@@ -249,12 +258,14 @@ int percentage(int num, int percent) {
   return (int)output;
 }
 
+
 // scale a number by the inverse of a percentage, from 0 to 100
 int percentageInverse(int num, int percent) {
   double div = percentageFloat(percent);
   double output = num / div;
   return (int)output;
 }
+
 
 // convert an integer from 0 to 100 to a float percentage
 // from 0.0 to 1.0.  Special cases for 1/3, 1/6, 1/7, etc
