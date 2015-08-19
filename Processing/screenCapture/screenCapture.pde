@@ -42,14 +42,22 @@ import processing.video.*;
 import processing.serial.*;
 import java.awt.Rectangle;
 
-SimpleScreenCapture simpleScreenCapture;
+// https://github.com/onformative/ScreenCapturer/issues/2
+import java.awt.Robot;
+import java.awt.Rectangle;
+import java.awt.AWTException;
 
-int SCREEN_WIDTH=64;
-int SCREEN_HEIGHT=36;
-int MARGIN = 80;
+Robot robot;
+
+final int SCREEN_WIDTH = 64;
+final int SCREEN_HEIGHT = 36;
+
+final int PANEL_WIDTH=64;
+final int PANEL_HEIGHT=12;
+final int LEDS_PER_STRIP = PANEL_WIDTH * PANEL_HEIGHT;
 
 int numPorts=0;  // the number of serial ports in use
-int maxPorts=8;  // maximum number of serial ports
+int maxPorts=24; // maximum number of serial ports
 
 Serial[] ledSerial = new Serial[maxPorts];     // each port's actual Serial port
 Rectangle[] ledArea = new Rectangle[maxPorts]; // the area of the movie each port gets, in % (0-100)
@@ -57,43 +65,46 @@ boolean[] ledLayout = new boolean[maxPorts];   // layout of rows, true = even is
 PImage[] ledImage = new PImage[maxPorts];      // image sent to each port
 int errorCount=0;
 float framerate=0;
-PImage img;
-byte [] ledData;
-
 int maxW,maxH;
+PImage img;// = new PImage();
+//PImage cpy = new PImage();
+byte[] ledData;
 
 
 void setup() {
+    
   maxW=maxH=0;
   String[] list = Serial.list();
   delay(20);
   println("Serial Ports List:");
   println(list);
-  //serialConfigure("/dev/tty.usbmodem912641");  // change these to your port names
-  serialConfigure(list[list.length-1]);  // change these to your port names
-
-  if (errorCount > 0) {
-    exit();
-    return;
-  }
-  
+  //serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
+  serialConfigure(list[list.length-1]);
+  if (errorCount > 0) exit();
   
   int size=(maxW * maxH * 3);
-  
-  ledData = new byte[size+3];
+  ledData =  new byte[size+3];
   ledData[size+0]=0;
   ledData[size+1]=0;
   ledData[size+2]=0;
     
   size(640,360);  // create the window
-  simpleScreenCapture = new SimpleScreenCapture();
+  
+  try {
+    robot = new Robot();
+  }
+  catch (AWTException e) {
+    println(e);
+  }
 }
 
  
 // runs for each new frame of movie data
 void movieEvent() {
   // read the movie's next frame
-  img = simpleScreenCapture.get();
+  img = new PImage(robot.createScreenCapture(new Rectangle(150, 150, width, height)));
+  
+  //cpy.copy(img,0,0,img.width,img.height,0,0,img.width,img.height);
   
   for (int i=0; i < numPorts; i++) {    
     // copy a portion of the movie's image to the LED image
@@ -104,8 +115,7 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    image2data(ledImage[i], ledData, ledLayout[i]);
-    /*
+    image2data(ledImage[i], ledData, ledLayout[i]);/*
     if (i == 0) {
       ledData[0] = '*';  // first Teensy is the frame sync master
       int usec = (int)((1000000.0 / framerate) * 0.75);
@@ -123,23 +133,21 @@ void movieEvent() {
 
 
 // image2data converts an image to OctoWS2811's raw data format.
-// The data array must be the proper size for the image.
+// The number of vertical pixels in the image must be a multiple
+// of 8.  The data array must be the proper size for the image.
 void image2data(PImage image, byte[] data, boolean layout) {
-  int offset=0, p, pixel;
-  int size = image.height * image.height;
-  int r,g,b;
-  
-  for(p = 0; p < size; p++) {
-    pixel = image.pixels[p];
-    b = pixel & 0xFF;
-    pixel >>= 8;
-    g = pixel & 0xFF;
-    pixel >>= 8;
-    r = pixel & 0xFF;
+  int offset=0, x, y, mask, pixel, i=0;
+  int size = image.height * image.width;
+
+  for (y = 0; y < size; y++) {
+    pixel = image.pixels[y];
+    int r = ( pixel & 0xFF0000 ) >> 16; 
+    int g = ( pixel & 0x00FF00 ) >>  8; 
+    int b = ( pixel & 0x0000FF );
     
-    if( r==0 ) r = 1;
-    if( g==0 ) g = 1;
-    if( b==0 ) b = 1;
+    if( r==0 ) r=1;
+    if( g==0 ) g=1;
+    if( b==0 ) b=1;
     
     data[offset++] = (byte)(r);
     data[offset++] = (byte)(g);
@@ -155,40 +163,25 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
-
   try {
     ledSerial[numPorts] = new Serial(this, portName);
     if (ledSerial[numPorts] == null) throw new NullPointerException();
-    //ledSerial[numPorts].write('?');
+    ledSerial[numPorts].write('?');
   } catch (Throwable e) {
     println("Serial port " + portName + " does not exist or is non-functional");
     errorCount++;
     return;
   }
-/*
-  //delay(50);
-  ledSerial[numPorts].clear();
-  String line = ledSerial[numPorts].readStringUntil(10);
+  delay(50);/*
+  String line = ledSerial[numPorts].readStringUntil('\n');
   if (line == null) {
     println("Serial port " + portName + " is not responding.");
-    println("Is it really a Teensy 3.1 running VideoDisplay?");
+    println("Is it really a Teensy 3.0 running VideoDisplay?");
     errorCount++;
     return;
   }
-*/
-  //print("port "+numPorts+": ");
-  //  0 - led width
-  //  1 - led height
-  //  2 - ?
-  //  3 - ?
-  //  4 - ?
-  //  5 - source top left %
-  //  6 - source top left %
-  //  7 - source bottom right %
-  //  8 - source bottom right %
-  //  9 - ?
-  // 10 - ?
-  // 11 - ?
+  */
+  print("port "+numPorts+": ");
   String line = "64,36,0,0,0,0,0,100,100,0,0,0";
   String param[] = line.split(",");
   if (param.length != 12) {
@@ -196,7 +189,6 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
-
   int w = Integer.parseInt(param[0]);
   int h = Integer.parseInt(param[1]);
   // only store the info and increase numPorts if Teensy responds properly
@@ -205,9 +197,8 @@ void serialConfigure(String portName) {
                      Integer.parseInt(param[7]), Integer.parseInt(param[8]));
   ledLayout[numPorts] = (Integer.parseInt(param[5]) == 0);
   numPorts++;
-  
-  if(maxW<w) maxW=w;
-  if(maxH<h) maxH=h;
+  if(maxW < w) maxW = w;
+  if(maxH < h) maxH = h;
 }
 
 
@@ -216,9 +207,9 @@ void draw() {
   movieEvent();
    
   // show the original video
-  image(img, 0,MARGIN,640,360-MARGIN);
-  // show the compressed image
-  //image(ledImage[0], 0,80,640,360-80);
+  //image(img, 0,80,640,360-80);
+  //image(img, 0,80,640,415);
+  //image(ledImage[0], 0,80,640,415);
   
   // then try to show what was most recently sent to the LEDs
   // by displaying all the images for each port.
@@ -242,12 +233,14 @@ int percentage(int num, int percent) {
   return (int)output;
 }
 
+
 // scale a number by the inverse of a percentage, from 0 to 100
 int percentageInverse(int num, int percent) {
   double div = percentageFloat(percent);
   double output = num / div;
   return (int)output;
 }
+
 
 // convert an integer from 0 to 100 to a float percentage
 // from 0.0 to 1.0.  Special cases for 1/3, 1/6, 1/7, etc
