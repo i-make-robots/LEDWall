@@ -78,8 +78,12 @@ void setup() {
   delay(20);
   println("Serial Ports List:");
   println(list);
-  //serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
+
+  // either
+  //serialConfigure("/dev/tty.usbmodem912641");  // change these to your port names
+  // or let it try to choose automatically
   serialConfigure(list[list.length-1]);
+
   if (errorCount > 0) exit();
   
   int size=(maxW * maxH * 3);
