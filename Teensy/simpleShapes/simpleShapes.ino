@@ -7,22 +7,21 @@
 //OctoWS2811 Defn. Stuff
 #define PANEL_WIDTH 8
 #define PANEL_HEIGHT 8
-#define COLS_LEDs 8*4 // all of the following params need to be adjusted for screen size
-#define ROWS_LEDs 8*3  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
-#define LEDS_PER_STRIP (8*8*4)//(COLS_LEDs * (ROWS_LEDs / 6))
+#define PW (8*4) // all of the following params need to be adjusted for screen size
+#define PH (8*3)  // LED_LAYOUT assumed 0 if PH > 8
+#define LEDS_PER_STRIP (8*8*4)//(PW * (PH / 6))
 #define PANELS_PER_PIN 4
 
-#define PW (COLS_LEDs)
-#define PH (ROWS_LEDs)
 
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
 const int config = WS2811_RGB | WS2811_800kHz;
 OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, config);
 
-//Byte val 2PI Cosine Wave, offset by 1 PI 
+
+//Byte val 2PI Cosine Wave, offset by 1 PI
 //supports fast trig calcs and smooth LED fading/pulsing.
-uint8_t const cos_wave[256] PROGMEM =  
+uint8_t const cos_wave[256] PROGMEM =
 {0,0,0,0,1,1,1,2,2,3,4,5,6,6,8,9,10,11,12,14,15,17,18,20,22,23,25,27,29,31,33,35,38,40,42,
 45,47,49,52,54,57,60,62,65,68,71,73,76,79,82,85,88,91,94,97,100,103,106,109,113,116,119,
 122,125,128,131,135,138,141,144,147,150,153,156,159,162,165,168,171,174,177,180,183,186,
@@ -117,14 +116,14 @@ void setup() {
 int led_map(int input) {
   int row = input / LEDS_PER_STRIP;
   input %= LEDS_PER_STRIP;
-  
+
   int y = input / ( PANEL_WIDTH * PANELS_PER_PIN );
   int x = input % ( PANEL_WIDTH * PANELS_PER_PIN );
-  
+
   if(x%2) {
     y = 7-y;
   }
-  
+
   int output = row * LEDS_PER_STRIP
              + x * PANEL_HEIGHT
              + y;
@@ -154,7 +153,7 @@ int getRainbow(float i) {
   int b = ceil(k);
   float c = k - floor(k);
   if(b>= RAINBOW_LEN) b = 0;
-  
+
   int red   = linearInterpolation(rainbow[a*3+0],rainbow[(b*3+0)],c);
   int green = linearInterpolation(rainbow[a*3+1],rainbow[(b*3+1)],c);
   int blue  = linearInterpolation(rainbow[a*3+2],rainbow[(b*3+2)],c);
@@ -203,7 +202,7 @@ void line(int x1,int y1, int x2,int y2,int color) {
 
   int x = x1;
   int y = y1;
-  
+
   if(dx > dy) {
     sum=dy;
     for(i=0;i<dx;++i) {
@@ -254,6 +253,21 @@ void circle(int x0, int y0, int radius,int color) {
   }
 }
 
+// See https://en.wikipedia.org/wiki/Midpoint_circle_algorithm#Variant_with_Integer-Based_Arithmetic
+void negative_fill_circle(int x0, int y0, int radius,int color) {
+  int x,y;
+
+  for(y=0;y<PH;++y) {
+    for(x=0;x<PW;++x) {
+      float dx = x-x0;
+      float dy = y-y0;
+      if( dx*dx+dy*dy > radius*radius) {
+        leds.setPixel(led_map(x,y), color);
+      }
+    }
+  }
+}
+
 
 void loop() {
   // clear screen
@@ -261,23 +275,25 @@ void loop() {
 
   // m = seconds since start
   long m = millis() * 0.001;
+  // time per demo
+  int n=3;
   // m = time until demos loop and restart
-  m %= 50;
+  m %= n*5;
 
   // each animation
-  if(m < 10) {
+  if(m < n) {
     clockHands();
-  } else if(m<20) {
+  } else if(m<n*2) {
     rectangleTunnel();
-  } else if(m<30) {
+  } else if(m<n*3) {
     bouncingTriangle();
     marquee();
-  } else if(m<40) {
+  } else if(m<n*4) {
     circleTunnel();
   } else {
     nyanCat();
   }
-  
+
   // show the work
   leds.show();  // not sure if this function is needed  to update each frame
 }
@@ -295,15 +311,15 @@ void marquee() {
     leds.setPixel(led_map(i,0), ((j++)%3)==0 ? colorOn:colorOff );
   }
   // right column, top to bottom
-  for( i=0;i<PH;++i) { 
+  for( i=0;i<PH;++i) {
     leds.setPixel(led_map(PW-1,i), ((j++)%3)==0 ? colorOn:colorOff );
   }
   // bottom row, right to left
   for( i=0;i<PW;++i) {
     leds.setPixel(led_map(PW-1-i,PH-1), ((j++)%3)==0 ? colorOn:colorOff );
-  } 
+  }
   // left column, top to bottom
-  for( i=0;i<PH;++i) { 
+  for( i=0;i<PH;++i) {
     leds.setPixel(led_map(0,PH-1-i), ((j++)%3)==0 ? colorOn:colorOff );
   }
 }
@@ -313,12 +329,12 @@ void maskTime() {
   int x,y;
   float f = ( millis() * 0.001 );
   int d = getRainbow( f - floor(f) );
-  
+
   for(y=0;y<PH;++y) {
     for(x=0;x<PW;++x) {
-      
+
       int c = makeTimeMask[(y*4)+(x/8)];
-      
+
       if( (c & (1<<(7-(x%8)))) !=0 ) {
         clip(x,y,d);
       }
@@ -343,7 +359,7 @@ void clockHands() {
 
   circle(x1,y1,10,makeColor(255,0,0));
 
-  //if( (int)(j/2) % 2 ) 
+  //if( (int)(j/2) % 2 )
   {
     maskTime();
   }
@@ -359,21 +375,27 @@ void bouncingTriangle() {
   // move points of triangle
   px1 += xv1;
   py1 += yv1;
-  
+
   px2 += xv2;
   py2 += yv2;
-  
+
   px3 += xv3;
   py3 += yv3;
 
   // bounce them off the edges
-  if(px1>=PW || px1<0) xv1*=-1;
-  if(px2>=PW || px2<0) xv2*=-1;
-  if(px3>=PW || px3<0) xv3*=-1;
+  if(px1>=PW) { xv1*=-1; px1 = PW*2 - px1; }
+  if(px1< 0 ) { xv1*=-1; px1 =       -px1; }
+  if(px2>=PW) { xv2*=-1; px2 = PW*2 - px2; }
+  if(px2< 0 ) { xv2*=-1; px2 =       -px2; }
+  if(px3>=PW) { xv3*=-1; px3 = PW*2 - px3; }
+  if(px3< 0 ) { xv3*=-1; px3 =       -px3; }
 
-  if(py1>=PH || py1<0) yv1*=-1;
-  if(py2>=PH || py2<0) yv2*=-1;
-  if(py3>=PH || py3<0) yv3*=-1;
+  if(py1>=PH) { yv1*=-1; py1 = PH*2 - py1; }
+  if(py1< 0 ) { yv1*=-1; py1 =       -py1; }
+  if(py2>=PH) { yv2*=-1; py2 = PH*2 - py2; }
+  if(py2< 0 ) { yv2*=-1; py2 =       -py2; }
+  if(py3>=PH) { yv3*=-1; py3 = PH*2 - py3; }
+  if(py3< 0 ) { yv3*=-1; py3 =       -py3; }
 }
 
 
@@ -381,18 +403,20 @@ void rectangleTunnel() {
   // move points of triangle
   px1 -= xv1*3.0;
   py1 += yv1*3.0;
-  
-  if(px1>=PW || px1<0) xv1*=-1;
-  if(py1>=PH || py1<0) yv1*=-1;
+
+  if(px1>=PW) { xv1*=-1; px1 = PW*2 - px1; }
+  if(px1< 0 ) { xv1*=-1; px1 =       -px1; }
+  if(py1>=PH) { yv1*=-1; py1 = PH*2 - py1; }
+  if(py1< 0 ) { yv1*=-1; py1 =       -py1; }
 
   double j = millis() * 20.0 * 0.001;
   int i, c;
-  
+
   //Colour the center pixel
   clip(px1, py1, getRainbow((float)((int)(j)%PW)/(float)PW));
   for(i=1;i<PW;++i) {
     c = getRainbow((float)((int)(j-i)%PW)/(float)PW);
-    
+
     line(px1-i,py1-i,px1+i,py1-i,c);
     line(px1+i,py1-i,px1+i,py1+i,c);
     line(px1+i,py1+i,px1-i,py1+i,c);
@@ -405,60 +429,56 @@ void circleTunnel1() {
   // move points of triangle
   px2 -= xv2*3.0;
   py2 += yv2*3.0;
-  
-  if(px2>=PW || px2<0) xv2*=-1;
-  if(py2>=PH || py2<0) yv2*=-1;
+
+  if(px2>=PW) { xv2*=-1; px2 = PW*2 - px2; }
+  if(px2< 0 ) { xv2*=-1; px2 =       -px2; }
+  if(py2>=PH) { yv2*=-1; py2 = PH*2 - py2; }
+  if(py2< 0 ) { yv2*=-1; py2 =       -py2; }
 
   double j = millis() * 30.0 * 0.001;
-  
+
   int i, c;
-  
+
   for(i=0;i<PW*1.2;++i) {
     c = getRainbow((float)((int)(i+j)%PW)/(float)PW);
-    
+
     circle(px2,py2,i,c);
   }
 }
 
 
-#define CTLEN  (int)(PW*1.2)
-
-int cx[CTLEN];//XY coords of circle buffer
-int cy[CTLEN];//XY coords of circle buffer
-int cMax = 1;
-float tMark = 0;
-int cN=0;
+#define CTLEN  (int)(PW*0.6)
+float cx[CTLEN];//XY coords of circle buffer
+float cy[CTLEN];//XY coords of circle buffer
 
 void circleTunnel() {
   // move points of triangle
-  px2 += xv3;
-  py2 += yv3;
-  
-  if(px2>=PW*3/4 || px2<PW*1/4) xv3*=-1;
-  if(py2>=PH*3/4 || py2<PH*1/4) yv3*=-1;
-  
+  float t = millis() * 0.001f;
+
+  px2 = sin(t) * (float)PW*0.5;
+  py2 = cos(t) * (float)PH*0.5;
+
   cx[0] = px2;
   cy[0] = py2;
-  if(cMax < CTLEN-1) cMax++;
-  
+
   int i, c;
 
-  float t = millis() * 0.001f;
-  if( (t-tMark) > 0.05f ) {
-    for(i=cMax;i>0;--i) {
-      cx[i] = cx[i-1];
-      cy[i] = cy[i-1];
-    }
-    tMark = t;
-    cN++;
-    //xv3 = ((( rand() % 100 ) - 50 ) / 50.0 ) * 0.50;
-    //yv3 = ((( rand() % 100 ) - 50 ) / 50.0 ) * 0.50;
+  for(i=0;i<CTLEN;++i) {
+    float n = ((float)(CTLEN-i)/(float)CTLEN);
+    float v =3.14159 * n;
+    cx[i] = px2 * cos(v) * n;
+    cy[i] = py2 * cos(v) * n;
   }
-    
-  for(i=0;i<=cMax;++i) {
-    c = getRainbow( (float)( (((int)(cMax-i+cN)%cMax) )) / (float)cMax);
-    circle(cx[i],cy[i],i,c);
-    circle(cx[i],cy[i],i+1,c);
+
+  for(i=0;i<CTLEN;++i) {
+    float n = ((float)(CTLEN-i)/(float)CTLEN);
+    n = n *n;
+    n = 1-n;
+    n *= 255;
+//    c = getRainbow( ( (float)((int)(-i+t*20)%CTLEN) / (float)CTLEN) );
+    c = ( (int)(CTLEN-i+t*10) / 3 ) % 2 == 0 ? makeColor(255,n,n) : makeColor(n,n,255);
+    negative_fill_circle((float)PW*0.5 + cx[i], (float)PH*0.5 + cy[i],sqrt(i*i+i*i),c);
+    //clip((float)PW*0.5 + cx[i],  (float)PH*0.5 + cy[i],c);
   }
 }
 
@@ -516,15 +536,26 @@ char catMask[] = {
 void nyanCat() {
   int x,y,c;
   int f = (int)(millis() * 0.003)%2;
-  
+  int j = (int)(millis() * 0.01) % (PW*3);
+
+  // background
   fillScreen(colorBlue);
-  
+
+  // rainbow background
+  for(x=0;x<PW;++x) {
+    int w = ((x)%6)<3?0:1;
+    for(y=0;y<PH-8;++y) {
+      clip(x+6+j-PW*2,w+y+4,getRainbow((float)y/(float)(PH-8)));
+    }
+  }
+
+  // cat
   for(y=0;y<PH;++y) {
     for(x=0;x<PW;++x) {
       if(y+f<PH) {
         c = catMask[(y+f)*PW+x];
         if(c!=0) {
-          clip(x,y,catColors[c]);
+          clip(x+j-PW,y,catColors[c]);
         }
       }
     }
@@ -535,5 +566,5 @@ void nyanCat() {
 inline uint8_t fastCosineCalc( uint16_t preWrapVal) {
   uint8_t wrapVal = (preWrapVal % 255);
   if (wrapVal<0) wrapVal=255+wrapVal;
-  return (pgm_read_byte_near(cos_wave+wrapVal)); 
+  return (pgm_read_byte_near(cos_wave+wrapVal));
 }
