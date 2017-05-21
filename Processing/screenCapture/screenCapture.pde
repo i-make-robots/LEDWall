@@ -38,6 +38,8 @@
 //  4: if playing 50 or 60 Hz progressive video (or faster),
 //     edit framerate in movieEvent().
 
+//#define IS_VHS_WALL
+
 import processing.video.*;
 import processing.serial.*;
 import java.awt.Rectangle;
@@ -51,13 +53,15 @@ SimpleScreenCapture simpleScreenCapture;
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/test2.mp4");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/silhouette.mp4");
 
-final int SCREEN_WIDTH = 32;
-final int SCREEN_HEIGHT = 24;
+final int SCREEN_WIDTH = 32;  // the total width of your wall
+final int SCREEN_HEIGHT = 24;  // the total height of your wall
 
+#if defined(IS_VHS_WALL)
 final int PANEL_WIDTH=8;
 final int PANEL_HEIGHT=8;
 final int PANELS_PER_PIN = 4;
 final int LEDS_PER_STRIP = PANEL_WIDTH * PANEL_HEIGHT * PANELS_PER_PIN;
+#endif
 
 float gamma = 1.7;
 
@@ -130,7 +134,11 @@ void movieEvent() {
 }
 
 
-int led_map(int input) {
+#if defined(IS_VHS_WALL)
+// VHS has a unique wall that's wired in a crazy S pattern.
+// starting top left it goes down 8, right 1, back up, and so on.
+// there are three of these "snakes", each on a different pin.
+int led_mapVHS(int input) {
   int row = input / LEDS_PER_STRIP;
   input %= LEDS_PER_STRIP;
   
@@ -146,10 +154,28 @@ int led_map(int input) {
              + y;
   return output;
 }
+#endif
+
+
+// this is the more common sensible left-to-right, then right-to-left wiring.
+int led_mapMAKE(int input) {  
+  int y = input / ( SCREEN_WIDTH );
+  int x = input % ( SCREEN_WIDTH );
+  
+  // every second row is right to left
+  if( y % 2 ) x = SCREEN_WIDTH - 1 - x;
+
+  int output = y * SCREEN_WIDTH + x;
+  return output;
+}
 
 
 int led_map(int x,int y) {
-  return led_map(y * SCREEN_WIDTH + x);
+#if defined(IS_VHS_WALL)
+  return led_mapVHS(y * SCREEN_WIDTH + x);
+#else
+  return led_mapMAKE(y * SCREEN_WIDTH + x);
+#endif
 }
 
 
