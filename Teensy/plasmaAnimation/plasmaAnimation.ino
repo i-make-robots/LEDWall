@@ -15,7 +15,7 @@
 
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
-const int config = WS2811_GRB | WS2811_800kHz;
+const int config = WS2811_RGB | WS2811_800kHz;
 OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, config);
 
 //Byte val 2PI Cosine Wave, offset by 1 PI 

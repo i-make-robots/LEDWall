@@ -65,13 +65,14 @@
 #define TOTAL_LIGHTS    (COLUMNS * ROWS)
 #define LEDS_PER_STRIP  (TOTAL_LIGHTS / PINS_USED)
 
-
-
 DMAMEM int displayMemory[LEDS_PER_STRIP*6];
 int drawingMemory[LEDS_PER_STRIP*6];
 OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, WS2811_GRB | WS2811_800kHz);
+
+
 int pixeli;
 int led_state=HIGH;
+
 
 void setup() {
   pinMode(13, OUTPUT);
@@ -86,15 +87,15 @@ void setup() {
 
   leds.begin();
   
-  show_rainbow();
+  showTestPattern();
 }
 
 
-void show_rainbow() {
+void showTestPattern() {
   for(long i=0;i<TOTAL_LIGHTS;++i) {
     long j = i % COLUMNS;
     long k = i / COLUMNS;
-    leds.setPixel(led_map(i),rainbow(j,k));
+    leds.setPixel(led_map(j,k),rainbow(j,k));
   }
   leds.show();
   pixeli=0;
@@ -150,21 +151,22 @@ int led_map(int index) {
 void loop() {
   int r,g,b;
   /*
+  // test pattern
   long t;
   bool one=false;
-  show_rainbow();
-      digitalWrite(13, led_state);
-      led_state = ( led_state == HIGH ) ? LOW : HIGH;
-      delay(250);
-  return;
+  showTestPattern();
+  digitalWrite(13, led_state);
+  led_state = ( led_state == HIGH ) ? LOW : HIGH;
+  delay(250);
   */
   do {
     /*
+    // return to test pattern if no video signal for 2s.
     t = millis();
     while(Serial.available()<=0) {
       if(one==false && millis()-t > 2000) {
         one=true;
-        show_rainbow();
+        showTestPattern();
       }
     }
     one=false;
