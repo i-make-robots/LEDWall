@@ -40,24 +40,12 @@
 
 #include <OctoWS2811.h>
 
-#define PANEL_WIDTH 8
-#define PANEL_HEIGHT 8
-#define COLS_LEDs 8*4  // all of the following params need to be adjusted for screen size
-#define ROWS_LEDs 8*3  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
-#define LEDS_PER_STRIP (8*8*4)//(COLS_LEDs * (ROWS_LEDs / 6))
-#define PANELS_PER_PIN 4
 
-DMAMEM int displayMemory[LEDS_PER_STRIP*6];
-int drawingMemory[LEDS_PER_STRIP*6];
+#define COLUMNS 64 // all of the following params need to be adjusted for screen size
+#define ROWS 36  // LED_LAYOUT assumed 0 if ROWS > 8
+#define TOTAL_LEDS  (COLUMNS * ROWS)
+#define LEDS_PER_STRIP (TOTAL_LEDS/3)//(COLUMNS * (ROWS / 6))
 
-const int config = WS2811_GRB | WS2811_800kHz;
-
-OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, config);
-
-void setup() {
-  leds.begin();
-  leds.show();
-}
 
 #define RED    0xFF0000
 #define GREEN  0x00FF00
@@ -66,6 +54,18 @@ void setup() {
 #define PINK   0xFF1088
 #define ORANGE 0xE05800
 #define WHITE  0xFFFFFF
+
+
+DMAMEM int displayMemory[LEDS_PER_STRIP*6];
+int drawingMemory[LEDS_PER_STRIP*6];
+const int config = WS2811_GRB | WS2811_800kHz;
+OctoWS2811 leds(LEDS_PER_STRIP, displayMemory, drawingMemory, config);
+
+
+void setup() {
+  leds.begin();
+  leds.show();
+}
 
 void loop() {
   int microsec = 2000000 / leds.numPixels();  // change them all in 2 seconds
@@ -83,32 +83,20 @@ void loop() {
 }
 
 
-int led_map(int input) {
-  int row = input / LEDS_PER_STRIP;
-  input %= LEDS_PER_STRIP;
-  
-  int y = input / ( PANEL_WIDTH * PANELS_PER_PIN );
-  int x = input % ( PANEL_WIDTH * PANELS_PER_PIN );
-  
-  if(x%2) {
-    y = 7-y;
+int led_map(int x,int y) {
+  //return led_map(y * COLUMNS + x);
+  if((y%2)==1) {
+    x = COLUMNS - 1 - x;
   }
   
-  int output = row * LEDS_PER_STRIP
-             + x * PANEL_HEIGHT
-             + y;
-  return output;
+  return y * COLUMNS + x;
 }
 
-
-int led_map(int x,int y) {
-  return led_map(y * PANEL_WIDTH * PANELS_PER_PIN + x);
-}
 
 void colorWipe(int color, int wait)
 {
   for (int i=0; i < LEDS_PER_STRIP*3; i++) {
-    leds.setPixel(led_map(i), color);
+    leds.setPixel(led_map(i%COLUMNS,i/COLUMNS), color);
     leds.show();
     delayMicroseconds(wait);
   }
