@@ -46,22 +46,8 @@ import java.awt.Rectangle;
 
 SimpleScreenCapture simpleScreenCapture;
 
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/Die Hard [1988] DvdRip [Eng] - Thizz/Die Hard [1988] DvdRip [Eng] - Thizz.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/The Fifth Element[1997]DvDrip[Eng]-FXG/The Fifth Element[1997]DvDrip[Eng]-FXG.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Downloads/test.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/voodoo.mp4");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/test2.mp4");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/silhouette.mp4");
-
 final int SCREEN_WIDTH = 32;  // the total width of your wall
 final int SCREEN_HEIGHT = 24;  // the total height of your wall
-
-#if defined(IS_VHS_WALL)
-final int PANEL_WIDTH=8;
-final int PANEL_HEIGHT=8;
-final int PANELS_PER_PIN = 4;
-final int LEDS_PER_STRIP = PANEL_WIDTH * PANEL_HEIGHT * PANELS_PER_PIN;
-#endif
 
 float gamma = 1.7;
 
@@ -78,7 +64,7 @@ int maxW,maxH;
 PImage img;// = new PImage();
 //PImage cpy = new PImage();
 byte[] ledData;
-
+int [] ledLookup;
 
 void setup() {
   maxW=maxH=0;
@@ -87,7 +73,7 @@ void setup() {
   println("Serial Ports List:");
   println(list);
   //serialConfigure("/dev/tty.usbmodem315451");  // change these to your port names
-  serialConfigure(list[list.length-1]);
+  serialConfigure(list[list.length-1]);  // connects to the last port by default.
   if (errorCount > 0) exit();
   
   int size=(maxW * maxH * 3);
@@ -95,12 +81,29 @@ void setup() {
   ledData[size+0]=0;
   ledData[size+1]=0;
   ledData[size+2]=0;
+  generateLookupTable();
     
-  size(640,480);  // create the window
+  size(640,480);  // create the window.  Change this to match your aspect ratio.
   simpleScreenCapture = new SimpleScreenCapture();
 }
 
- 
+
+void generateLookupTable() {
+  int size=(maxW * maxH * 3);
+  ledLookup = new int[size+3];
+  
+  int offset=0, x, y;
+
+  for (y = 0; y < maxH; y++) {
+    for (x = 0; x < maxW; x++) {
+      ledLookup[offset++] = led_map(x,y)*3;
+      ledLookup[offset++] = led_map(x,y)*3+1;
+      ledLookup[offset++] = led_map(x,y)*3+2;
+    }
+  }
+}
+
+
 // runs for each new frame of movie data
 void movieEvent() {
   // read the movie's next frame
@@ -134,31 +137,8 @@ void movieEvent() {
 }
 
 
-#if defined(IS_VHS_WALL)
-// VHS has a unique wall that's wired in a crazy S pattern.
-// starting top left it goes down 8, right 1, back up, and so on.
-// there are three of these "snakes", each on a different pin.
-int led_mapVHS(int input) {
-  int row = input / LEDS_PER_STRIP;
-  input %= LEDS_PER_STRIP;
-  
-  int y = input / ( SCREEN_WIDTH );
-  int x = input % ( SCREEN_WIDTH );
-  
-  if((x%2)==1) {
-    y = 7-y;
-  }
-  
-  int output = row * LEDS_PER_STRIP
-             + x * PANEL_HEIGHT
-             + y;
-  return output;
-}
-#endif
-
-
 // this is the more common sensible left-to-right, then right-to-left wiring.
-int led_mapMAKE(int input) {  
+int led_map(int input) {  
   int y = input / ( SCREEN_WIDTH );
   int x = input % ( SCREEN_WIDTH );
   
@@ -171,25 +151,22 @@ int led_mapMAKE(int input) {
 
 
 int led_map(int x,int y) {
-#if defined(IS_VHS_WALL)
-  return led_mapVHS(y * SCREEN_WIDTH + x);
-#else
-  return led_mapMAKE(y * SCREEN_WIDTH + x);
-#endif
+  return led_map(y * SCREEN_WIDTH + x);
 }
 
 
 
-// image2data converts an image to OctoWS2811's raw data format.
-// The number of vertical pixels in the image must be a multiple
-// of 8.  The data array must be the proper size for the image.
+/**
+ * image2data converts an image to OctoWS2811's raw data format.
+ * The data array must be the proper size for the image.
+ * The only truly black pixel is the frame marker.  Black is the most important color!
+ */
 void image2data(PImage image, byte[] data, boolean layout) {
   int offset, x, y, mask, pixel, i=0;
   int size = image.height * image.width;
 
-  for (y = 0; y < image.height; y++) {
-    for (x = 0; x < image.width; x++) {
-      pixel = image.pixels[i++];
+  for (y = 0; y < size; y++) {
+      pixel = image.pixels[y];
       int r = ( pixel & 0xFF0000 ) >> 16; 
       int g = ( pixel & 0x00FF00 ) >>  8; 
       int b = ( pixel & 0x0000FF );
@@ -198,10 +175,10 @@ void image2data(PImage image, byte[] data, boolean layout) {
       if( g==0 ) g=1;
       if( b==0 ) b=1;
       
-      offset = led_map(x,y)*3;
-      data[offset++] = (byte)(r);
-      data[offset++] = (byte)(g);
-      data[offset++] = (byte)(b);
+      // TODO optimize to not call led_map every pixel every frame.
+      data[ledLookup[offset++]] = (byte)(r);
+      data[ledLookup[offset++]] = (byte)(g);
+      data[ledLookup[offset++]] = (byte)(b);
     }
   }
 }
@@ -233,7 +210,7 @@ void serialConfigure(String portName) {
   }
   */
   print("port "+numPorts+": ");
-  String line = "32,24,0,0,0,0,0,100,100,0,0,0";
+  String line = SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
   String param[] = line.split(",");
   if (param.length != 12) {
     println("Error: port " + portName + " did not respond to LED config query");
@@ -259,8 +236,7 @@ void draw() {
    
   // show the original video
   //image(img, 0,80,640,415);
-  //image(img, 0,80,640,415);
-  image(ledImage[0], 0,80,640,415);
+  image(ledImage[0], 0,80,width,height-80);
   
   // then try to show what was most recently sent to the LEDs
   // by displaying all the images for each port.

@@ -40,9 +40,7 @@ import processing.video.*;
 import processing.serial.*;
 import java.awt.Rectangle;
 
-Movie myMovie = new Movie(this, "/Users/danroyer/Movies/Die Hard [1988] DvdRip [Eng] - Thizz/Die Hard [1988] DvdRip [Eng] - Thizz.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Movies/The Fifth Element[1997]DvDrip[Eng]-FXG/The Fifth Element[1997]DvDrip[Eng]-FXG.avi");
-//Movie myMovie = new Movie(this, "/Users/danroyer/Downloads/test.avi");
+Movie myMovie = new Movie(this, "/Users/danroyer/Downloads/test.avi");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/voodoo.mp4");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/test2.mp4");
 //Movie myMovie = new Movie(this, "/Users/danroyer/Movies/silhouette.mp4");
@@ -282,4 +280,3 @@ double percentageFloat(int percent) {
   if (percent ==  8) return 1.0 / 12.0;
   return (double)percent / 100.0;
 }
-
