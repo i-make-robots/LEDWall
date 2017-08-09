@@ -46,8 +46,8 @@ import java.awt.Rectangle;
 
 SimpleScreenCapture simpleScreenCapture;
 
-final int SCREEN_WIDTH = 32;  // the total width of your wall
-final int SCREEN_HEIGHT = 24;  // the total height of your wall
+final int SCREEN_WIDTH = 60;  // the total width of your wall
+final int SCREEN_HEIGHT = 36;  // the total height of your wall
 
 float gamma = 1.7;
 
@@ -143,7 +143,7 @@ int led_map(int input) {
   int x = input % ( SCREEN_WIDTH );
   
   // every second row is right to left
-  if( y % 2 ) x = SCREEN_WIDTH - 1 - x;
+  if( (y % 2)==1 ) x = SCREEN_WIDTH - 1 - x;
 
   int output = y * SCREEN_WIDTH + x;
   return output;
@@ -162,14 +162,14 @@ int led_map(int x,int y) {
  * The only truly black pixel is the frame marker.  Black is the most important color!
  */
 void image2data(PImage image, byte[] data, boolean layout) {
-  int offset, x, y, mask, pixel, i=0;
+  int offset=0, y, pixel,r,g,b;
   int size = image.height * image.width;
 
   for (y = 0; y < size; y++) {
     pixel = image.pixels[y];
-    int r = ( pixel & 0xFF0000 ) >> 16; 
-    int g = ( pixel & 0x00FF00 ) >>  8; 
-    int b = ( pixel & 0x0000FF );
+    r = ( pixel & 0xFF0000 ) >> 16; 
+    g = ( pixel & 0x00FF00 ) >>  8; 
+    b = ( pixel & 0x0000FF );
     
     if( r==0 ) r=1;
     if( g==0 ) g=1;
