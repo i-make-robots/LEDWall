@@ -166,20 +166,19 @@ void image2data(PImage image, byte[] data, boolean layout) {
   int size = image.height * image.width;
 
   for (y = 0; y < size; y++) {
-      pixel = image.pixels[y];
-      int r = ( pixel & 0xFF0000 ) >> 16; 
-      int g = ( pixel & 0x00FF00 ) >>  8; 
-      int b = ( pixel & 0x0000FF );
-      
-      if( r==0 ) r=1;
-      if( g==0 ) g=1;
-      if( b==0 ) b=1;
-      
-      // TODO optimize to not call led_map every pixel every frame.
-      data[ledLookup[offset++]] = (byte)(r);
-      data[ledLookup[offset++]] = (byte)(g);
-      data[ledLookup[offset++]] = (byte)(b);
-    }
+    pixel = image.pixels[y];
+    int r = ( pixel & 0xFF0000 ) >> 16; 
+    int g = ( pixel & 0x00FF00 ) >>  8; 
+    int b = ( pixel & 0x0000FF );
+    
+    if( r==0 ) r=1;
+    if( g==0 ) g=1;
+    if( b==0 ) b=1;
+    
+    // TODO optimize to not call led_map every pixel every frame.
+    data[ledLookup[offset++]] = (byte)(r);
+    data[ledLookup[offset++]] = (byte)(g);
+    data[ledLookup[offset++]] = (byte)(b);
   }
 }
 
