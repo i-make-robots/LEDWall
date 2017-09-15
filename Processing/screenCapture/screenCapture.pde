@@ -66,6 +66,7 @@ PImage img;// = new PImage();
 byte[] ledData;
 int [] ledLookup;
 
+
 void setup() {
   maxW=maxH=0;
   String[] list = Serial.list();
@@ -92,13 +93,14 @@ void generateLookupTable() {
   int size=(maxW * maxH * 3);
   ledLookup = new int[size+3];
   
-  int offset=0, x, y;
+  int offset=0, x, y,v;
 
   for (y = 0; y < maxH; y++) {
     for (x = 0; x < maxW; x++) {
-      ledLookup[offset++] = led_map(x,y)*3;
-      ledLookup[offset++] = led_map(x,y)*3+1;
-      ledLookup[offset++] = led_map(x,y)*3+2;
+      v = led_map(x,y)*3;
+      ledLookup[offset++] = v;
+      ledLookup[offset++] = v+1;
+      ledLookup[offset++] = v+2;
     }
   }
 }
