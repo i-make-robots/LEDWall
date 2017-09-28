@@ -49,7 +49,7 @@ import java.awt.AWTException;
 
 Robot robot;
 
-final int SCREEN_WIDTH = 64;
+final int SCREEN_WIDTH = 60;
 final int SCREEN_HEIGHT = 36;
 
 int numPorts=0;  // the number of serial ports in use
@@ -162,17 +162,19 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
-  delay(50);/*
-  String line = ledSerial[numPorts].readStringUntil('\n');
+  delay(50);
+  
+  String line;
+  //line = ""+SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
+  line = ledSerial[numPorts].readStringUntil('\n');
+
   if (line == null) {
     println("Serial port " + portName + " is not responding.");
     println("Is it really a Teensy 3.0 running VideoDisplay?");
     errorCount++;
     return;
   }
-  */
-  print("port "+numPorts+": ");
-  String line = ""+SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
+  //*/
   String param[] = line.split(",");
   if (param.length != 12) {
     println("Error: port " + portName + " did not respond to LED config query");

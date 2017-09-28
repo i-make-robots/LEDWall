@@ -58,7 +58,7 @@
 
 #include <OctoWS2811.h>
 
-#define COLUMNS      (64)  // all of the following params need to be adjusted for screen size
+#define COLUMNS      (60)  // all of the following params need to be adjusted for screen size
 #define ROWS         (36)  // LED_LAYOUT assumed 0 if ROWS_LEDs > 8
 #define PINS_USED    (3)
 
@@ -78,7 +78,7 @@ void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, led_state);
 
-  //Serial.begin(57600);
+  Serial.begin(57600);
   Serial.setTimeout(50);
   Serial.print(COLUMNS);
   Serial.print(',');
@@ -133,7 +133,6 @@ int rainbow(long j,long k) {
 
 
 inline int led_map(int x,int y) {
-  //return led_map(y * COLUMNS + x);
   if((y%2)==1) {
     x = COLUMNS - 1 - x;
   }
