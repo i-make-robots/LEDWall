@@ -132,7 +132,7 @@ int rainbow(long j,long k) {
 }
 
 
-int led_map(int x,int y) {
+inline int led_map(int x,int y) {
   //return led_map(y * COLUMNS + x);
   if((y%2)==1) {
     x = COLUMNS - 1 - x;
@@ -142,7 +142,7 @@ int led_map(int x,int y) {
 }
 
 
-int led_map(int index) {
+inline int led_map(int index) {
   return led_map( index % COLUMNS,
                   index / COLUMNS );
 }
