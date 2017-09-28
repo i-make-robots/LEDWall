@@ -52,10 +52,6 @@ Robot robot;
 final int SCREEN_WIDTH = 64;
 final int SCREEN_HEIGHT = 36;
 
-final int PANEL_WIDTH=64;
-final int PANEL_HEIGHT=12;
-final int LEDS_PER_STRIP = PANEL_WIDTH * PANEL_HEIGHT;
-
 int numPorts=0;  // the number of serial ports in use
 int maxPorts=24; // maximum number of serial ports
 
@@ -72,7 +68,6 @@ byte[] ledData;
 
 
 void setup() {
-    
   maxW=maxH=0;
   String[] list = Serial.list();
   delay(20);
@@ -119,17 +114,7 @@ void movieEvent() {
     ledImage[i].copy(img, xoffset, yoffset, xwidth, yheight,
                      0, 0, ledImage[i].width, ledImage[i].height);
     // convert the LED image to raw data
-    image2data(ledImage[i], ledData, ledLayout[i]);/*
-    if (i == 0) {
-      ledData[0] = '*';  // first Teensy is the frame sync master
-      int usec = (int)((1000000.0 / framerate) * 0.75);
-      ledData[1] = (byte)(usec);   // request the frame sync pulse
-      ledData[2] = (byte)(usec >> 8); // at 75% of the frame time
-    } else {
-      ledData[0] = '%';  // others sync to the master board
-      ledData[1] = 0;
-      ledData[2] = 0;
-    }*/
+    image2data(ledImage[i], ledData, ledLayout[i]);
     // send the raw data to the LEDs  :-)
     ledSerial[i].write(ledData); 
   }
@@ -140,14 +125,15 @@ void movieEvent() {
 // The number of vertical pixels in the image must be a multiple
 // of 8.  The data array must be the proper size for the image.
 void image2data(PImage image, byte[] data, boolean layout) {
-  int offset=0, x, y, mask, pixel, i=0;
+  int offset=0, y, mask, pixel;
   int size = image.height * image.width;
-
+  int r,g,b;
+  
   for (y = 0; y < size; y++) {
     pixel = image.pixels[y];
-    int r = ( pixel & 0xFF0000 ) >> 16; 
-    int g = ( pixel & 0x00FF00 ) >>  8; 
-    int b = ( pixel & 0x0000FF );
+    r = ( pixel & 0xFF0000 ) >> 16; 
+    g = ( pixel & 0x00FF00 ) >>  8; 
+    b = ( pixel & 0x0000FF );
     
     if( r==0 ) r=1;
     if( g==0 ) g=1;
@@ -186,7 +172,7 @@ void serialConfigure(String portName) {
   }
   */
   print("port "+numPorts+": ");
-  String line = "64,36,0,0,0,0,0,100,100,0,0,0";
+  String line = ""+SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
   String param[] = line.split(",");
   if (param.length != 12) {
     println("Error: port " + portName + " did not respond to LED config query");
@@ -211,7 +197,7 @@ void draw() {
   movieEvent();
    
   // show the original video
-  //image(img, 0,80,640,360-80);
+  image(img, 0,80,640,360-80);
   //image(img, 0,80,640,415);
   //image(ledImage[0], 0,80,640,415);
   
