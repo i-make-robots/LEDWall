@@ -78,7 +78,7 @@ void setup() {
   pinMode(13, OUTPUT);
   digitalWrite(13, led_state);
 
-  Serial.begin(57600);
+  //Serial.begin(57600);
   Serial.setTimeout(50);
   Serial.print(COLUMNS);
   Serial.print(',');

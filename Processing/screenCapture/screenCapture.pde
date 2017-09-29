@@ -1,4 +1,4 @@
-// Modified by dan@marginallyclever.com 2015-07-03
+teensy// Modified by dan@marginallyclever.com 2015-07-03
 
 /*  OctoWS2811 movie2serial.pde - Transmit video data to 1 or more
       Teensy 3.0 boards running OctoWS2811 VideoDisplay.ino
@@ -162,11 +162,11 @@ void serialConfigure(String portName) {
     errorCount++;
     return;
   }
-  delay(50);
+  delay(250);
   
   String line;
-  //line = ""+SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
-  line = ledSerial[numPorts].readStringUntil('\n');
+  line = ""+SCREEN_WIDTH+","+SCREEN_HEIGHT+",0,0,0,0,0,100,100,0,0,0";
+  //line = ledSerial[numPorts].readStringUntil('\n');
 
   if (line == null) {
     println("Serial port " + portName + " is not responding.");
